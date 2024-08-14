@@ -63,6 +63,7 @@ def as_markdown(
     overwrite: bool = False,
     exclude_source: bool = False,
     template_dir: str = "",
+    excluded_modules: list = None,
 ) -> str:
     """Produces Markdown formatted output into the specified output_dir.
 
@@ -75,13 +76,28 @@ def as_markdown(
 
     Returns the `output_dir` on success.
     """
+    if excluded_modules is None:
+        excluded_modules = []
     if template_dir:
         pdocs.render.tpl_lookup.directories.insert(0, template_dir)
 
     roots = _get_root_modules(modules)
+    if excluded_modules:
+        roots = [r for r in roots if r.name not in excluded_modules]
+
+        for root in roots:
+            root.submodules = filter_submodues(excluded_modules, root)
     destination = _destination(output_dir, roots, overwrite)
     pdocs.static.md_out(destination, roots, source=not exclude_source)
     return output_dir
+
+
+def filter_submodues(excluded_modules: list, root: pdocs.doc.Module) -> list:
+    if root.submodules:
+        root.submodules = [s for s in root.submodules if s.name not in excluded_modules]
+        for mod in root.submodules:
+            mod.submodules = filter_submodues(excluded_modules, mod)
+    return root.submodules
 
 
 def server(
